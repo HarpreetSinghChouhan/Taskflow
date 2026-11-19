@@ -7,6 +7,8 @@ use App\Http\Controllers\HomeController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\ProjectController;
 use App\Http\Controllers\Pm\ProjectController as PmProjectController;
+use App\Http\Controllers\Pm\TaskController as PmTaskController;
+use App\Http\Controllers\Pm\TeamLeaderController as PmTeamLeaderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -40,8 +42,18 @@ Route::middleware(['auth', 'role:project_manager'])->group(function () {
     Route::get('/pm/projects', [PmProjectController::class, 'index'])->name('pm.projects.index');
     Route::get('/pm/projects/{project}/edit', [PmProjectController::class, 'edit'])->name('pm.projects.edit');
     Route::put('/pm/projects/{project}', [PmProjectController::class, 'update'])->name('pm.projects.update');
+    Route::get('/pm/tasks', [PmTaskController::class, 'overview'])->name('pm.tasks.overview');
+    Route::get('/pm/projects/{project}/board', [PmTaskController::class, 'board'])->name('pm.tasks.board');
+    Route::patch('/pm/tasks/{task}/move', [PmTaskController::class, 'move'])->name('pm.tasks.move');
+    Route::get('/pm/projects/{project}/tasks', [PmTaskController::class, 'index'])->name('pm.tasks.index');
+    Route::get('/pm/projects/{project}/tasks/create', [PmTaskController::class, 'create'])->name('pm.tasks.create');
+    Route::post('/pm/projects/{project}/tasks', [PmTaskController::class, 'store'])->name('pm.tasks.store');
+    Route::get('/pm/tasks/{task}/edit', [PmTaskController::class, 'edit'])->name('pm.tasks.edit');
+    Route::put('/pm/tasks/{task}', [PmTaskController::class, 'update'])->name('pm.tasks.update');
+    Route::delete('/pm/tasks/{task}', [PmTaskController::class, 'destroy'])->name('pm.tasks.destroy');
+    Route::get('/pm/team-leaders', [PmTeamLeaderController::class, 'index'])->name('pm.team-leaders.index');
 });
-
+  
 // 👥 Team Leader Portal (Only accessible by Team Leader)
 Route::middleware(['auth', 'role:team_leader'])->group(function () {
     Route::get('/tl', fn() => redirect()->route('tl.dashboard'));

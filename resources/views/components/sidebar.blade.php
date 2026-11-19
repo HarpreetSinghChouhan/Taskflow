@@ -141,7 +141,7 @@
                 <span class="sidebar-badge">{{ $user->projects()->where('status', 'active')->count() }} Active</span>
             </a>
 
-            <a href="javascript:void(0)" class="sidebar-link">
+            <a href="{{ route('pm.tasks.overview') }}" class="sidebar-link {{ request()->routeIs('pm.tasks.overview') ? 'active' : '' }}">
                 <div class="link-left">
                     <i class="bi bi-kanban"></i>
                     <span>Task Management</span>
@@ -156,11 +156,12 @@
                 <span class="sidebar-badge" style="background:#D97706;">5</span>
             </a>
 
-            <a href="javascript:void(0)" class="sidebar-link">
+            <a href="{{ route('pm.team-leaders.index') }}" class="sidebar-link {{ request()->routeIs('pm.team-leaders.*') ? 'active' : '' }}">
                 <div class="link-left">
                     <i class="bi bi-people"></i>
-                    <span>Assigned Teams</span>
+                    <span>My Team Leaders</span>
                 </div>
+                <span class="sidebar-badge">{{ $user->reports()->where('role', 'team_leader')->count() }}</span>
             </a>
 
             <a href="javascript:void(0)" class="sidebar-link">
