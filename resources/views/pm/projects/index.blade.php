@@ -52,6 +52,7 @@
                         <th style="width: 36%;">Project</th>
                         <th>Start</th>
                         <th>Deadline</th>
+                        <th>Hours</th>
                         <th>Status</th>
                         <th class="text-end" style="width: 18%;">Actions</th>
                     </tr>
@@ -90,6 +91,11 @@
                                     @if ($overdue)
                                         <i class="bi bi-exclamation-circle-fill ms-1" title="Overdue"></i>
                                     @endif
+                                </span>
+                            </td>
+                            <td>
+                                <span class="fs-13 text-secondary">
+                                    {{ (float) $project->total_hours }} h
                                 </span>
                             </td>
                             <td>

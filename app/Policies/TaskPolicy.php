@@ -37,4 +37,20 @@ class TaskPolicy
     {
         return $this->ownsProject($user, $task->project);
     }
+    // Team leader hands the task to one of their employees
+    public function assignEmployee(User $user, Task $task): bool
+    {
+        return $user->isTeamLeader() && $task->assigned_to === $user->id;
+    }
+    // Employee works only on tasks given to them
+    public function work(User $user, Task $task): bool
+    {
+        return $user->isEmployee() && $task->employee_id === $user->id;
+    }
+    // PM sees tasks of own projects, TL sees tasks given to them
+    public function view(User $user, Task $task): bool
+    {
+        return $this->ownsProject($user, $task->project)
+            || ($user->isTeamLeader() && $task->assigned_to === $user->id);
+    }
 }

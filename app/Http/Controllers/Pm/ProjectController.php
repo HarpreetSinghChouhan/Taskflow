@@ -21,7 +21,9 @@ class ProjectController extends Controller
         $statusFilter = $request->query('status');
         $search = $request->query('search');
 
-        $query = Project::where('project_manager_id', $pmId)->withCount('tasks');
+        $query = Project::where('project_manager_id', $pmId)
+            ->withCount('tasks')
+            ->withSum('taskLogs as total_hours', 'hours');
 
         if ($search) {
             $query->where('name', 'like', "%{$search}%");

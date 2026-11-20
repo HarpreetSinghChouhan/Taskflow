@@ -83,14 +83,6 @@
             </a>
 
             <div class="nav-section-title">Workspace &amp; Delivery</div>
-
-            <!-- <a href="javascript:void(0)" class="sidebar-link">
-                <div class="link-left">
-                    <i class="bi bi-folder-check"></i>
-                    <span>All Projects</span>
-                </div>
-                <span class="sidebar-badge">24</span>
-            </a> -->
             <a href="{{ route('admin.projects.index') }}" class="sidebar-link {{ request()->routeIs('admin.projects.*') ? 'active' : '' }}">
                 <div class="link-left">
                     <i class="bi bi-folder-check"></i>
@@ -182,19 +174,20 @@
 
             <div class="nav-section-title">Sprint &amp; Team</div>
 
-            <a href="javascript:void(0)" class="sidebar-link">
+            <a href="{{ route('tl.team.index') }}" class="sidebar-link {{ request()->routeIs('tl.team.*') ? 'active' : '' }}">
                 <div class="link-left">
                     <i class="bi bi-diagram-3"></i>
                     <span>My Sub-Team</span>
                 </div>
-                <span class="sidebar-badge">8 Devs</span>
+                <span class="sidebar-badge">{{ $user->reports()->where('role', 'employee')->count() }}</span>
             </a>
 
-            <a href="javascript:void(0)" class="sidebar-link">
+            <a href="{{ route('tl.tasks.index') }}" class="sidebar-link {{ request()->routeIs('tl.tasks.*') ? 'active' : '' }}">
                 <div class="link-left">
                     <i class="bi bi-list-task"></i>
                     <span>Team Tasks</span>
                 </div>
+                <span class="sidebar-badge">{{ $user->assignedTasks()->count() }}</span>
             </a>
 
             <a href="javascript:void(0)" class="sidebar-link">
@@ -223,46 +216,52 @@
 
             <div class="nav-section-title">My Tasks &amp; Delivery</div>
 
-            <a href="javascript:void(0)" class="sidebar-link">
-                <div class="link-left">
-                    <i class="bi bi-check2-circle"></i>
-                    <span>My Assigned Tasks</span>
-                </div>
-                <span class="sidebar-badge">9 Total</span>
-            </a>
+                <a href="{{ route('employee.tasks.index') }}" class="sidebar-link {{ request()->routeIs('employee.tasks.*') && ! request()->query('status') ? 'active' : '' }}">
+                    <div class="link-left">
+                        <i class="bi bi-check2-circle"></i>
+                        <span>My Assigned Tasks</span>
+                    </div>
+                    <span class="sidebar-badge">{{ $user->employeeTasks()->count() }} Total</span>
+                </a>
 
-            <a href="javascript:void(0)" class="sidebar-link">
-                <div class="link-left">
-                    <i class="bi bi-clock-history"></i>
-                    <span>In Progress</span>
-                </div>
-                <span class="sidebar-badge" style="background:#2563EB;">3</span>
-            </a>
+                <a href="{{ route('employee.tasks.index', ['status' => 'in_progress']) }}" class="sidebar-link {{ request()->query('status') === 'in_progress' ? 'active' : '' }}">
+                    <div class="link-left">
+                        <i class="bi bi-clock-history"></i>
+                        <span>In Progress</span>
+                    </div>
+                    <span class="sidebar-badge" style="background:#2563EB;">{{ $user->employeeTasks()->where('status', 'in_progress')->count() }}</span>
+                </a>
 
-            <a href="javascript:void(0)" class="sidebar-link">
-                <div class="link-left">
-                    <i class="bi bi-send-check"></i>
-                    <span>Submitted for Review</span>
-                </div>
-            </a>
+                <a href="{{ route('employee.tasks.index', ['status' => 'in_review']) }}" class="sidebar-link {{ request()->query('status') === 'in_review' ? 'active' : '' }}">
+                    <div class="link-left">
+                        <i class="bi bi-send-check"></i>
+                        <span>Submitted for Review</span>
+                    </div>
+                </a>
 
-            <a href="javascript:void(0)" class="sidebar-link">
-                <div class="link-left">
-                    <i class="bi bi-flag-fill"></i>
-                    <span>Completed Tasks</span>
-                </div>
-            </a>
+                <a href="{{ route('employee.tasks.index', ['status' => 'done']) }}" class="sidebar-link {{ request()->query('status') === 'done' ? 'active' : '' }}">
+                    <div class="link-left">
+                        <i class="bi bi-flag-fill"></i>
+                        <span>Completed Tasks</span>
+                    </div>
+                </a>
+                <a href="{{ route('employee.projects') }}" class="sidebar-link {{ request()->routeIs('employee.projects') ? 'active' : '' }}">
+                    <div class="link-left">
+                        <i class="bi bi-folder2"></i>
+                        <span>My Projects</span>
+                    </div>
+                </a>
 
-            <a href="javascript:void(0)" class="sidebar-link">
-                <div class="link-left">
-                    <i class="bi bi-folder2"></i>
-                    <span>My Projects</span>
-                </div>
-            </a>
-        @endif
+                <a href="{{ route('employee.team') }}" class="sidebar-link {{ request()->routeIs('employee.team') ? 'active' : '' }}">
+                    <div class="link-left">
+                        <i class="bi bi-people"></i>
+                        <span>My Team</span>
+                    </div>
+                </a>
+            @endif
 
-        <div class="nav-section-title">Account</div>
-        <a href="{{ route('home') }}" class="sidebar-link">
+            <div class="nav-section-title">Account</div>
+            <a href="{{ route('home') }}" class="sidebar-link">
             <div class="link-left">
                 <i class="bi bi-box-arrow-up-right"></i>
                 <span>Public Home Page</span>

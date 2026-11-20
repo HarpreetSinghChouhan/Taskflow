@@ -37,4 +37,9 @@ class Project extends Model
     {
         return $this->hasMany(Task::class);
     }
+    // Progress updates of all tasks in this project
+    public function taskLogs()
+    {
+        return $this->hasManyThrough(TaskLog::class, Task::class);
+    }
 }

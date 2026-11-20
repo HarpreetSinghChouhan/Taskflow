@@ -9,20 +9,18 @@
             <h3 class="fw-bold text-navy mb-1" style="font-size: 22px; letter-spacing: -0.4px;">
                 {{ $project->name }}
             </h3>
-            <p class="text-muted fs-13 mb-0">Tasks assigned to your team leaders</p>
+            <!-- <p class="text-muted fs-13 mb-0">Tasks assigned to your team leaders</p> -->
+             <p class="text-muted fs-13 mb-0">Tasks assigned to your team leaders &bull; Total logged: <strong>{{ (float) $totalHours }} h</strong></p>
         </div>
         <div class="d-flex gap-2">
-    <div class="btn-group btn-group-sm">
-        <a href="{{ route('pm.tasks.index', $project) }}" class="btn btn-primary"><i class="bi bi-list-ul me-1"></i>List</a>
-        <a href="{{ route('pm.tasks.board', $project) }}" class="btn btn-outline-secondary"><i class="bi bi-kanban me-1"></i>Board</a>
-    </div>
-    <a href="{{ route('pm.tasks.create', $project) }}" class="btn btn-sm text-white px-3 py-2 rounded-3 shadow-sm" style="background: var(--dash-brand); font-size: 13px;">
-        <i class="bi bi-plus-lg me-1"></i> New Task
-    </a>
-</div>  
-        <!-- <a href="{{ route('pm.tasks.create', $project) }}" class="btn btn-sm text-white px-3 py-2 rounded-3 shadow-sm" style="background: var(--dash-brand); font-size: 13px;">
-            <i class="bi bi-plus-lg me-1"></i> New Task
-        </a> -->
+            <div class="btn-group btn-group-sm">
+                <a href="{{ route('pm.tasks.index', $project) }}" class="btn btn-primary"><i class="bi bi-list-ul me-1"></i>List</a>
+                <a href="{{ route('pm.tasks.board', $project) }}" class="btn btn-outline-secondary"><i class="bi bi-kanban me-1"></i>Board</a>
+            </div>
+            <a href="{{ route('pm.tasks.create', $project) }}" class="btn btn-sm text-white px-3 py-2 rounded-3 shadow-sm" style="background: var(--dash-brand); font-size: 13px;">
+                <i class="bi bi-plus-lg me-1"></i> New Task
+            </a>
+        </div>
     </div>
 
     {{-- Filters --}}
@@ -74,6 +72,7 @@
                         <th>Assigned To</th>
                         <th>Priority</th>
                         <th>Due Date</th>
+                        <th>Hours</th>
                         <th>Status</th>
                         <th class="text-end" style="width: 12%;">Actions</th>
                     </tr>
@@ -99,9 +98,9 @@
                         @endphp
                         <tr>
                             <td>
-                                <div class="fw-semibold text-navy text-truncate" style="font-size: 14px; max-width: 300px;">
+                                <a href="{{ route('pm.tasks.show', $task) }}" class="fw-semibold text-navy text-truncate d-block text-decoration-none" style="font-size: 14px; max-width: 300px;">
                                     {{ $task->title }}
-                                </div>
+                                </a>
                                 @if ($task->description)
                                     <small class="text-muted d-block text-truncate fs-12" style="max-width: 300px;">
                                         {{ $task->description }}
@@ -110,6 +109,9 @@
                             </td>
                             <td>
                                 <span class="fs-13 text-secondary">{{ $task->assignee?->name ?? '—' }}</span>
+                                @if ($task->employee)
+                                    <small class="d-block text-muted fs-12"><i class="bi bi-arrow-return-right"></i> {{ $task->employee->name }}</small>
+                                @endif  
                             </td>
                             <td>
                                 <span class="badge rounded-pill px-2 py-1"
@@ -124,6 +126,10 @@
                                         <i class="bi bi-exclamation-circle-fill ms-1" title="Overdue"></i>
                                     @endif
                                 </span>
+                            </td>
+                            <td class="fs-13 text-secondary">
+                                {{ (float) $task->logged_hours }} h
+
                             </td>
                             <td>
                                 <span class="badge rounded-pill px-2 py-1"

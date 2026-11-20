@@ -15,6 +15,7 @@ class Task extends Model
         'title',
         'description',
         'assigned_to',
+        'employee_id',
         'created_by',
         'status',
         'priority',
@@ -37,6 +38,17 @@ class Task extends Model
     public function assignee()
     {
         return $this->belongsTo(User::class, 'assigned_to')->withTrashed();
+    }
+    // The employee the team leader gave this task to
+    public function employee()
+    {
+        return $this->belongsTo(User::class, 'employee_id')->withTrashed();
+    }
+
+    // Progress updates written on this task
+    public function logs()
+    {
+        return $this->hasMany(TaskLog::class);
     }
 
     // The project manager who created the task

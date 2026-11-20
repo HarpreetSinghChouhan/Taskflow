@@ -9,6 +9,10 @@ use App\Http\Controllers\Admin\ProjectController;
 use App\Http\Controllers\Pm\ProjectController as PmProjectController;
 use App\Http\Controllers\Pm\TaskController as PmTaskController;
 use App\Http\Controllers\Pm\TeamLeaderController as PmTeamLeaderController;
+use App\Http\Controllers\Tl\TaskController as TlTaskController;
+use App\Http\Controllers\Employee\TaskController as EmployeeTaskController; 
+use App\Http\Controllers\Employee\TeamController as EmployeeTeamController;
+use App\Http\Controllers\Tl\TeamController as TlTeamController;
 
 /*
 |--------------------------------------------------------------------------
@@ -43,6 +47,7 @@ Route::middleware(['auth', 'role:project_manager'])->group(function () {
     Route::get('/pm/projects/{project}/edit', [PmProjectController::class, 'edit'])->name('pm.projects.edit');
     Route::put('/pm/projects/{project}', [PmProjectController::class, 'update'])->name('pm.projects.update');
     Route::get('/pm/tasks', [PmTaskController::class, 'overview'])->name('pm.tasks.overview');
+    Route::get('/pm/tasks/{task}', [PmTaskController::class, 'show'])->name('pm.tasks.show');
     Route::get('/pm/projects/{project}/board', [PmTaskController::class, 'board'])->name('pm.tasks.board');
     Route::patch('/pm/tasks/{task}/move', [PmTaskController::class, 'move'])->name('pm.tasks.move');
     Route::get('/pm/projects/{project}/tasks', [PmTaskController::class, 'index'])->name('pm.tasks.index');
@@ -58,12 +63,22 @@ Route::middleware(['auth', 'role:project_manager'])->group(function () {
 Route::middleware(['auth', 'role:team_leader'])->group(function () {
     Route::get('/tl', fn() => redirect()->route('tl.dashboard'));
     Route::get('/tl/dashboard', [DashboardController::class, 'tl'])->name('tl.dashboard');
+    Route::get('/tl/tasks', [TlTaskController::class, 'index'])->name('tl.tasks.index');
+    Route::get('/tl/tasks/{task}', [TlTaskController::class, 'show'])->name('tl.tasks.show');
+    Route::patch('/tl/tasks/{task}/employee', [TlTaskController::class, 'assignEmployee'])->name('tl.tasks.assign');
+    Route::get('/tl/team', [TlTeamController::class, 'index'])->name('tl.team.index');
 });
 
 // 👤 Developer Portal (Only accessible by Employee)
 Route::middleware(['auth', 'role:employee'])->group(function () {
     Route::get('/employee', fn() => redirect()->route('employee.dashboard'));
     Route::get('/employee/dashboard', [DashboardController::class, 'employee'])->name('employee.dashboard');
+    Route::get('/employee/tasks', [EmployeeTaskController::class, 'index'])->name('employee.tasks.index');
+    Route::get('/employee/tasks/{task}', [EmployeeTaskController::class, 'show'])->name('employee.tasks.show');
+    Route::patch('/employee/tasks/{task}/status', [EmployeeTaskController::class, 'updateStatus'])->name('employee.tasks.status');
+    Route::post('/employee/tasks/{task}/logs', [EmployeeTaskController::class, 'storeLog'])->name('employee.tasks.logs.store');
+    Route::get('/employee/team', [EmployeeTeamController::class, 'team'])->name('employee.team');
+Route::get('/employee/projects', [EmployeeTeamController::class, 'projects'])->name('employee.projects');
 });
 Route::get('/account/verify/{user}', [AuthController::class, 'verify'])
     ->middleware('signed')

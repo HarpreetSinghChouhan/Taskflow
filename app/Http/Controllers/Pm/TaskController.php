@@ -29,7 +29,7 @@ class TaskController extends Controller
         // Only tasks that belong to this PM's projects
         $base = fn () => Task::whereHas('project', fn ($q) => $q->where('project_manager_id', $pmId));
 
-        $query = $base()->with(['project', 'assignee']);
+        $query = $base()->with(['project', 'assignee','employee']);
 
         if ($search) {
             $query->where('title', 'like', "%{$search}%");
@@ -69,93 +69,113 @@ class TaskController extends Controller
         ));
     }
     /**
-    * Kanban board of one project (columns are statuses).
+    * Read-only task page with progress updates.
     */
-    public function board(Project $project): View
+    public function show(Task $task): View
     {
-        Gate::authorize('viewAny', [Task::class, $project]);
+        Gate::authorize('view', $task);
 
-        // Urgent first, then earliest due date (no date last), then oldest
-    $tasks = $project->tasks()
-        ->with('assignee')
-        ->orderByRaw("CASE priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")
-        ->orderByRaw('due_date IS NULL')
-        ->orderBy('due_date')
-        ->orderBy('id')
-        ->get();
-
-    $grouped = $tasks->groupBy('status');
-
-    $columns = [
-        'todo'        => $grouped->get('todo', collect()),
-        'in_progress' => $grouped->get('in_progress', collect()),
-        'in_review'   => $grouped->get('in_review', collect()),
-        'done'        => $grouped->get('done', collect()),
-    ];
-
-    return view('pm.tasks.board', compact('project', 'columns'));
-    }
-
-    /**
-     * Change a task's status after a drag and drop (AJAX).
-     */
-    public function move(Request $request, Task $task): JsonResponse
-    {
-        Gate::authorize('update', $task);
-
-        $data = $request->validate([
-            'status' => ['required', 'in:todo,in_progress,in_review,done'],
+        $task->load([
+            'project.manager',
+            'assignee',
+            'employee',
+            'logs' => fn ($q) => $q->with('user')->latest('log_date')->latest('id'),
         ]);
 
-        $task->update(['status' => $data['status']]);
+        return view('tasks.show', [
+            'task'       => $task,
+            'totalHours' => $task->logs->sum('hours'),
+            'backUrl'    => route('pm.tasks.index', $task->project_id),
+            'backLabel'  => 'Back to Project Tasks',
+            ]);
+        }
+        /**
+        * Kanban board of one project (columns are statuses).
+        */
+        public function board(Project $project): View
+        {
+            Gate::authorize('viewAny', [Task::class, $project]);
 
-        return response()->json(['ok' => true, 'status' => $task->status]);
-    }
-    /**
-     * List the tasks of one project.
-     */
-    public function index(Request $request, Project $project): View
-    {
-        Gate::authorize('viewAny', [Task::class, $project]);
+            // Urgent first, then earliest due date (no date last), then oldest
+            $tasks = $project->tasks()
+                ->with('assignee','employee')
+                ->orderByRaw("CASE priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")
+                ->orderByRaw('due_date IS NULL')
+                ->orderBy('due_date')
+                ->orderBy('id')
+                ->get();
 
-        $statusFilter = $request->query('status');
-        $priorityFilter = $request->query('priority');
-        $search = $request->query('search');
+            $grouped = $tasks->groupBy('status');
 
-        $query = $project->tasks()->with('assignee');
+            $columns = [
+                'todo'        => $grouped->get('todo', collect()),
+                'in_progress' => $grouped->get('in_progress', collect()),
+                'in_review'   => $grouped->get('in_review', collect()),
+                'done'        => $grouped->get('done', collect()),
+            ];
 
-        if ($search) {
-            $query->where('title', 'like', "%{$search}%");
+            return view('pm.tasks.board', compact('project', 'columns'));
         }
 
-        if ($statusFilter && in_array($statusFilter, ['todo', 'in_progress', 'in_review', 'done'])) {
-            $query->where('status', $statusFilter);
+        /**
+        * Change a task's status after a drag and drop (AJAX).
+        */
+        public function move(Request $request, Task $task): JsonResponse
+        {
+            Gate::authorize('update', $task);
+
+            $data = $request->validate([
+                'status' => ['required', 'in:todo,in_progress,in_review,done'],
+            ]);
+
+            $task->update(['status' => $data['status']]);
+            return response()->json(['ok' => true, 'status' => $task->status]);
         }
+        /**
+        * List the tasks of one project.
+        */
+        public function index(Request $request, Project $project): View
+        {
+            Gate::authorize('viewAny', [Task::class, $project]);
 
-        if ($priorityFilter && in_array($priorityFilter, ['low', 'medium', 'high', 'urgent'])) {
-            $query->where('priority', $priorityFilter);
+            $statusFilter = $request->query('status');
+            $priorityFilter = $request->query('priority');
+            $search = $request->query('search');
+
+            $query = $project->tasks()->with(['assignee', 'employee'])->withSum('logs as logged_hours', 'hours');
+            
+            if ($search) {
+                $query->where('title', 'like', "%{$search}%");
+            }
+
+            if ($statusFilter && in_array($statusFilter, ['todo', 'in_progress', 'in_review', 'done'])) {
+                $query->where('status', $statusFilter);
+            }
+
+            if ($priorityFilter && in_array($priorityFilter, ['low', 'medium', 'high', 'urgent'])) {
+                $query->where('priority', $priorityFilter);
+            }
+
+            $tasks = $query->latest('id')->paginate(10)->withQueryString();
+            $totalHours = $project->taskLogs()->sum('hours');
+            // One query for all status counts
+            $byStatus = $project->tasks()
+                ->selectRaw('status, COUNT(*) as total')
+                ->groupBy('status')
+                ->pluck('total', 'status');
+
+            $counts = [
+                'all'         => $byStatus->sum(),
+                'todo'        => $byStatus['todo'] ?? 0,
+                'in_progress' => $byStatus['in_progress'] ?? 0,
+                'in_review'   => $byStatus['in_review'] ?? 0,
+                'done'        => $byStatus['done'] ?? 0,
+            ];
+
+            return view('pm.tasks.index', compact(
+                'project', 'tasks', 'counts', 'statusFilter', 'priorityFilter', 'search','totalHours'
+            ));
         }
-
-        $tasks = $query->latest('id')->paginate(10)->withQueryString();
-
-        // One query for all status counts
-        $byStatus = $project->tasks()
-            ->selectRaw('status, COUNT(*) as total')
-            ->groupBy('status')
-            ->pluck('total', 'status');
-
-        $counts = [
-            'all'         => $byStatus->sum(),
-            'todo'        => $byStatus['todo'] ?? 0,
-            'in_progress' => $byStatus['in_progress'] ?? 0,
-            'in_review'   => $byStatus['in_review'] ?? 0,
-            'done'        => $byStatus['done'] ?? 0,
-        ];
-
-        return view('pm.tasks.index', compact(
-            'project', 'tasks', 'counts', 'statusFilter', 'priorityFilter', 'search'
-        ));
-    }
 
     public function create(Project $project): View
     {
@@ -192,7 +212,14 @@ class TaskController extends Controller
     {
         Gate::authorize('update', $task);
 
-        $task->update($this->validated($request));
+        $data = $this->validated($request);
+
+        // A new team leader has a different team, so clear the old employee
+        if ((int) $data['assigned_to'] !== (int) $task->assigned_to) {
+            $data['employee_id'] = null;
+        }
+
+        $task->update($data);
 
         return redirect()
             ->route('pm.tasks.index', $task->project_id)

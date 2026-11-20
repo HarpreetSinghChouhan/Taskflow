@@ -19,6 +19,80 @@
             </button>
         </div>
     </div>
+    @php $hours = auth()->user()->hoursSummary(); @endphp
+
+{{-- Hours overview --}}
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="dash-card p-3 d-flex align-items-center gap-3">
+            <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; background: #eef2ff; color: #4f46e5; font-size: 20px;">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <div>
+                <div class="fs-12 text-muted fw-medium">Total Hours (all projects)</div>
+                <div class="fs-20 fw-bold" style="color: #4f46e5;">{{ $hours['total_hours'] }} h</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="dash-card p-3 d-flex align-items-center gap-3">
+            <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; background: #ecfdf5; color: #059669; font-size: 20px;">
+                <i class="bi bi-calendar-week"></i>
+            </div>
+            <div>
+                <div class="fs-12 text-muted fw-medium">Hours This Week</div>
+                <div class="fs-20 fw-bold" style="color: #059669;">{{ $hours['week_hours'] }} h</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="dash-card p-3 d-flex align-items-center gap-3">
+            <div class="rounded-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; background: #fffbeb; color: #d97706; font-size: 20px;">
+                <i class="bi bi-folder-check"></i>
+            </div>
+            <div>
+                <div class="fs-12 text-muted fw-medium">Projects</div>
+                <div class="fs-20 fw-bold" style="color: #d97706;">{{ $hours['projects']->count() }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Hours by project --}}
+<x-card title="Hours by Project" icon="bi-bar-chart-line-fill" noBodyPadding="true" class="mb-4">
+    <div class="table-responsive">
+        <table class="dash-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th style="width: 36%;">Project</th>
+                    <th>Tasks</th>
+                    <th>Progress</th>
+                    <th class="text-end">Hours</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($hours['projects'] as $p)
+                    @php $percent = $p->tasks_count ? round($p->done_tasks_count / $p->tasks_count * 100) : 0; @endphp
+                    <tr>
+                        <td>
+                            <a href="{{ route('pm.tasks.index', $p) }}" class="fw-semibold text-navy text-decoration-none fs-13">{{ $p->name }}</a>
+                        </td>
+                        <td class="fs-13">{{ $p->done_tasks_count }} / {{ $p->tasks_count }} done</td>
+                        <td style="min-width: 130px;">
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar bg-success" style="width: {{ $percent }}%;"></div>
+                            </div>
+                            <small class="text-muted fs-12">{{ $percent }}%</small>
+                        </td>
+                        <td class="text-end fs-13 fw-semibold">{{ (float) $p->total_hours }} h</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="4" class="text-center text-muted fs-13 py-4">No projects yet.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</x-card>
 
     {{-- 4 PM KPI Metrics --}}
     <div class="row g-3 mb-4">

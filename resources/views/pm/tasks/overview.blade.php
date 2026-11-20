@@ -90,9 +90,9 @@
                         @endphp
                         <tr>
                             <td>
-                                <div class="fw-semibold text-navy text-truncate" style="font-size: 14px; max-width: 260px;">
+                                <a href="{{ route('pm.tasks.show', $task) }}" class="fw-semibold text-navy text-truncate d-block text-decoration-none" style="font-size: 14px; max-width: 300px;">
                                     {{ $task->title }}
-                                </div>
+                                </a>
                                 @if ($task->description)
                                     <small class="text-muted d-block text-truncate fs-12" style="max-width: 260px;">
                                         {{ $task->description }}
@@ -104,7 +104,12 @@
                                     {{ $task->project?->name ?? '—' }}
                                 </a>
                             </td>
-                            <td><span class="fs-13 text-secondary">{{ $task->assignee?->name ?? '—' }}</span></td>
+                            <td>
+                                <span class="fs-13 text-secondary">{{ $task->assignee?->name ?? '—' }}</span>
+                                @if ($task->employee)
+                                    <small class="d-block text-muted fs-12"><i class="bi bi-arrow-return-right"></i> {{ $task->employee->name }}</small>
+                                @endif
+                            </td>
                             <td>
                                 <span class="badge rounded-pill px-2 py-1"
                                       style="background: {{ $priorityMeta['bg'] }}; color: {{ $priorityMeta['color'] }}; font-weight: 600; font-size: 12px; border: 1px solid rgba(0,0,0,0.06);">
