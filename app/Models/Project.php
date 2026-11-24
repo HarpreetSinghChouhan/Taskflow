@@ -32,4 +32,14 @@ class Project extends Model
     {
         return $this->belongsTo(User::class, 'project_manager_id')->withTrashed();
     }
+    // Tasks that belong to this project
+    public function tasks()
+    {
+        return $this->hasMany(Task::class);
+    }
+    // Progress updates of all tasks in this project
+    public function taskLogs()
+    {
+        return $this->hasManyThrough(TaskLog::class, Task::class);
+    }
 }

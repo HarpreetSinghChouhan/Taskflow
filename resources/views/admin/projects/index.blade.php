@@ -59,6 +59,8 @@
                         <th>Project Manager</th>
                         <th>Start</th>
                         <th>Deadline</th>
+                        <th>Progress</th>
+                        <th>Hours</th>
                         <th>Status</th>
                         <th class="text-end" style="width: 12%;">Actions</th>
                     </tr>
@@ -79,9 +81,9 @@
                         @endphp
                         <tr>
                             <td>
-                                <div class="fw-semibold text-navy text-truncate" style="font-size: 14px; max-width: 280px;">
+                                <a href="{{ route('admin.projects.show', $project) }}" class="fw-semibold text-navy text-truncate d-block text-decoration-none" style="font-size: 14px; max-width: 280px;">
                                     {{ $project->name }}
-                                </div>
+                                </a>
                                 @if ($project->description)
                                     <small class="text-muted d-block text-truncate fs-12" style="max-width: 280px;">
                                         {{ $project->description }}
@@ -101,6 +103,16 @@
                                         <i class="bi bi-exclamation-circle-fill ms-1" title="Overdue"></i>
                                     @endif
                                 </span>
+                            </td>
+                            <td style="min-width: 110px;">
+                                @php $pct = $project->tasks_count ? round($project->done_tasks_count / $project->tasks_count * 100) : 0; @endphp
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar bg-success" style="width: {{ $pct }}%;"></div>
+                                </div>
+                                <small class="text-muted fs-12">{{ $pct }}% ({{ $project->done_tasks_count }}/{{ $project->tasks_count }})</small>
+                            </td>
+                            <td>
+                                <span class="fs-13 text-secondary">{{ (float) $project->total_hours }} h</span>
                             </td>
                             <td>
                                 <span class="badge rounded-pill px-2 py-1"

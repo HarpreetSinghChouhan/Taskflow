@@ -123,4 +123,41 @@ class User extends Authenticatable
     {
         return $this->hasMany(Project::class, 'project_manager_id');
     }
+    // Tasks assigned to this user
+    public function assignedTasks()
+    {
+        return $this->hasMany(Task::class, 'assigned_to');
+    }
+    // Tasks given to this employee by their team leader
+    public function employeeTasks()
+    {
+        return $this->hasMany(Task::class, 'employee_id');
+    }
+    // Progress updates written by this user
+    public function taskLogs()
+    {
+        return $this->hasMany(TaskLog::class);
+    }
+    // Hours summary shown on the project manager dashboard
+    public function hoursSummary(): array
+    {
+        $projects = $this->projects()
+            ->withCount([
+                'tasks',
+                'tasks as done_tasks_count' => fn ($q) => $q->where('status', 'done'),
+            ])
+            ->withSum('taskLogs as total_hours', 'hours')
+            ->orderByDesc('total_hours')
+            ->get();
+
+        $weekHours = TaskLog::whereHas('task.project', fn ($q) => $q->where('project_manager_id', $this->id))
+            ->whereBetween('log_date', [now()->startOfWeek()->toDateString(), now()->endOfWeek()->toDateString()])
+            ->sum('hours');
+
+        return [
+            'projects'    => $projects,
+            'total_hours' => (float) $projects->sum('total_hours'),
+            'week_hours'  => (float) $weekHours,
+        ];
+    }
 }

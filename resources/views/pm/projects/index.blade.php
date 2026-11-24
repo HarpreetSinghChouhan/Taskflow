@@ -52,8 +52,9 @@
                         <th style="width: 36%;">Project</th>
                         <th>Start</th>
                         <th>Deadline</th>
+                        <th>Hours</th>
                         <th>Status</th>
-                        <th class="text-end" style="width: 10%;">Actions</th>
+                        <th class="text-end" style="width: 18%;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -93,12 +94,22 @@
                                 </span>
                             </td>
                             <td>
+                                <span class="fs-13 text-secondary">
+                                    {{ (float) $project->total_hours }} h
+                                </span>
+                            </td>
+                            <td>
                                 <span class="badge rounded-pill px-2 py-1"
                                       style="background: {{ $statusMeta['bg'] }}; color: {{ $statusMeta['color'] }}; font-weight: 600; font-size: 12px; border: 1px solid rgba(0,0,0,0.06);">
                                     {{ $statusMeta['label'] }}
                                 </span>
                             </td>
+                            
                             <td class="text-end">
+                                <a href="{{ route('pm.tasks.index', $project) }}" class="btn btn-sm btn-outline-primary px-2 py-1 fs-12 rounded-2" title="View Tasks">
+                                    <i class="bi bi-list-task me-1"></i>Tasks
+                                    <span class="badge bg-primary-subtle text-primary ms-1">{{ $project->tasks_count }}</span>
+                                </a>
                                 <a href="{{ route('pm.projects.edit', $project) }}" class="btn btn-sm btn-outline-secondary px-2 py-1 fs-12 rounded-2" title="Edit Project">
                                     <i class="bi bi-pencil-square"></i>
                                 </a>
