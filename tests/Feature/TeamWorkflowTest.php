@@ -8,6 +8,7 @@ use App\Models\TaskLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use App\Models\TaskHourAllotment;
 
 class TeamWorkflowTest extends TestCase
 {
@@ -61,6 +62,19 @@ class TeamWorkflowTest extends TestCase
             'hours'    => 2.5,
             'note'     => 'Built the login form',
         ], $overrides);
+    }
+    // Give the task approved hours so the employee can log work
+    private function approveHours(Task $task, float $hours): void
+    {
+        TaskHourAllotment::create([
+            'task_id'         => $task->id,
+            'requested_by'    => $this->pm->id,
+            'requested_hours' => $hours,
+            'approved_hours'  => $hours,
+            'status'          => 'approved',
+            'note'            => 'Test',
+            'decided_at'      => now(),
+        ]);
     }
 
     // ---- Team leader ----
@@ -145,6 +159,7 @@ class TeamWorkflowTest extends TestCase
 
     public function test_employee_can_add_progress_update_with_hours(): void
     {
+        $this->approveHours($this->task, 10);
         $this->actingAs($this->emp)
             ->post("/employee/tasks/{$this->task->id}/logs", $this->logPayload())
             ->assertSessionHas('success');
@@ -181,17 +196,20 @@ class TeamWorkflowTest extends TestCase
         $this->assertDatabaseCount('task_logs', 0);
     }
 
-    public function test_employee_can_change_status_but_not_to_done(): void
+    public function test_employee_can_change_status_but_not_to_review_or_done(): void
     {
         $this->actingAs($this->emp)
-            ->patch("/employee/tasks/{$this->task->id}/status", ['status' => 'in_review'])
+            ->patch("/employee/tasks/{$this->task->id}/status", ['status' => 'in_progress'])
             ->assertSessionHas('success');
-        $this->assertDatabaseHas('tasks', ['id' => $this->task->id, 'status' => 'in_review']);
+        $this->assertDatabaseHas('tasks', ['id' => $this->task->id, 'status' => 'in_progress']);
 
-        $this->actingAs($this->emp)
-            ->patch("/employee/tasks/{$this->task->id}/status", ['status' => 'done'])
-            ->assertSessionHasErrors('status');
-        $this->assertDatabaseHas('tasks', ['id' => $this->task->id, 'status' => 'in_review']);
+        foreach (['in_review', 'done'] as $status) {
+            $this->actingAs($this->emp)
+                ->patch("/employee/tasks/{$this->task->id}/status", ['status' => $status])
+                ->assertSessionHasErrors('status');
+        }
+
+        $this->assertDatabaseHas('tasks', ['id' => $this->task->id, 'status' => 'in_progress']);
     }
 
     public function test_employee_cannot_work_on_another_employees_task(): void

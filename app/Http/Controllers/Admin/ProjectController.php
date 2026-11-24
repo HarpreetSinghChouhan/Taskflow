@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use App\Models\TaskLog;
 
 class ProjectController extends Controller
 {
@@ -20,7 +21,10 @@ class ProjectController extends Controller
         $statusFilter = $request->query('status');
         $search = $request->query('search');
 
-        $query = Project::query()->with('manager');
+        $query = Project::query()
+            ->with('manager')
+            ->withCount(['tasks', 'tasks as done_tasks_count' => fn ($q) => $q->where('status', 'done')])
+            ->withSum('taskLogs as total_hours', 'hours');
 
         if ($search) {
             $query->where('name', 'like', "%{$search}%");
@@ -41,6 +45,53 @@ class ProjectController extends Controller
         ];
 
         return view('admin.projects.index', compact('projects', 'counts', 'statusFilter', 'search'));
+    }
+    /**
+    * Detailed progress and time tracking of one project.
+    */
+    public function show(Project $project): View
+    {
+        $project->load('manager');
+
+        $tasks = $project->tasks()
+            ->with(['assignee', 'employee'])
+            ->withSum('logs as logged_hours', 'hours')
+            ->orderByRaw("CASE status WHEN 'in_progress' THEN 1 WHEN 'in_review' THEN 2 WHEN 'todo' THEN 3 ELSE 4 END")
+            ->orderBy('id')
+            ->get();
+
+        $byStatus = $tasks->countBy('status');
+        $counts = [
+            'todo'        => $byStatus['todo'] ?? 0,
+            'in_progress' => $byStatus['in_progress'] ?? 0,
+            'in_review'   => $byStatus['in_review'] ?? 0,
+            'done'        => $byStatus['done'] ?? 0,
+        ];
+
+        $total = $tasks->count();
+        $percent = $total ? round($counts['done'] / $total * 100) : 0;
+        $overdue = $tasks->filter(fn ($t) => $t->due_date && $t->due_date->isPast() && $t->status !== 'done')->count();
+        $totalHours = (float) $tasks->sum('logged_hours');
+
+        $taskIds = $tasks->pluck('id');
+
+        // Hours per person
+        $people = TaskLog::selectRaw('user_id, SUM(hours) as hours, COUNT(*) as entries, MAX(log_date) as last_date')
+            ->whereIn('task_id', $taskIds)
+            ->groupBy('user_id')
+            ->orderByDesc('hours')
+            ->with('user')
+            ->get();
+
+        $recentLogs = TaskLog::with(['user', 'task'])
+            ->whereIn('task_id', $taskIds)
+            ->latest('log_date')->latest('id')
+            ->limit(10)
+            ->get();
+
+        return view('admin.projects.show', compact(
+            'project', 'tasks', 'counts', 'total', 'percent', 'overdue', 'totalHours', 'people', 'recentLogs'
+        ));
     }
 
     public function create(): View

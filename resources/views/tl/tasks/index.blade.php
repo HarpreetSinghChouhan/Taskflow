@@ -102,6 +102,9 @@
                                 <span class="badge rounded-pill px-2 py-1" style="background: {{ $statusMeta['bg'] }}; color: {{ $statusMeta['color'] }}; font-weight: 600; font-size: 12px; border: 1px solid rgba(0,0,0,0.06);">
                                     {{ $statusMeta['label'] }}
                                 </span>
+                                @if ($task->status === 'in_review' && $task->review_stage === 'tl')
+                                    <span class="badge bg-warning text-dark ms-1">Needs your review</span>
+                                @endif
                             </td>
                             <td>
                                 <form method="POST" action="{{ route('tl.tasks.assign', $task) }}">

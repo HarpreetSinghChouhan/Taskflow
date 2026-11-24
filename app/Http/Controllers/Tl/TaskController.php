@@ -29,7 +29,7 @@ class TaskController extends Controller
 
         if ($search) {
             $query->where('title', 'like', "%{$search}%");
-        }
+        }   
 
         if ($statusFilter && in_array($statusFilter, ['todo', 'in_progress', 'in_review', 'done'])) {
             $query->where('status', $statusFilter);
@@ -40,6 +40,7 @@ class TaskController extends Controller
         }
 
         $tasks = $query
+            ->orderByRaw("CASE WHEN status = 'in_review' AND review_stage = 'tl' THEN 0 ELSE 1 END")
             ->orderByRaw("CASE priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")
             ->orderByRaw('due_date IS NULL')
             ->orderBy('due_date')
@@ -100,6 +101,38 @@ class TaskController extends Controller
         return back()->with('success', $message);
     }
     /**
+    * Team leader approves the work (goes to PM) or returns it to the employee.
+    */
+    public function review(Request $request, Task $task): RedirectResponse
+    {
+        Gate::authorize('reviewAsLeader', $task);
+
+        $data = $request->validate([
+            'decision' => ['required', 'in:approve,return'],
+            'body'     => ['required_if:decision,return', 'nullable', 'string', 'max:2000'],
+        ], [
+            'body.required_if' => 'Please write a comment when returning the task.',
+        ]);
+
+        if ($data['decision'] === 'approve') {
+            $task->update(['review_stage' => 'pm']);
+            $type = 'tl_approved';
+            $message = 'Approved. The task now goes to the project manager.';
+        } else {
+            $task->update(['status' => 'in_progress', 'review_stage' => null]);
+            $type = 'tl_returned';
+            $message = 'Task returned to the employee.';
+        }
+
+        $task->reviewEvents()->create([
+            'user_id' => Auth::id(),
+            'type'    => $type,
+            'body'    => $data['body'] ?? null,
+        ]);
+
+        return back()->with('success', $message);
+    }
+    /**
     * Read-only task page with progress updates.
     */
     public function show(Task $task): View
@@ -111,6 +144,7 @@ class TaskController extends Controller
             'assignee',
             'employee',
             'logs' => fn ($q) => $q->with('user')->latest('log_date')->latest('id'),
+            'reviewEvents' => fn ($q) => $q->with('user')->oldest('id'),
         ]);
 
         return view('tasks.show', [

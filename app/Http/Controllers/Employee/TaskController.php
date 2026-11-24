@@ -54,9 +54,6 @@ class TaskController extends Controller
         return view('employee.tasks.index', compact('tasks', 'counts', 'statusFilter', 'search'));
     }
 
-    /**
-     * One task with its progress updates.
-     */
     public function show(Task $task): View
     {
         Gate::authorize('work', $task);
@@ -64,27 +61,28 @@ class TaskController extends Controller
         $task->load([
             'project.manager',
             'assignee',
-            'logs' => fn ($q) => $q->with('user')->latest('log_date')->latest('id'),
+            'logs'         => fn ($q) => $q->with('user')->latest('log_date')->latest('id'),
+            'reviewEvents' => fn ($q) => $q->with('user')->oldest('id'),
         ]);
 
-        $totalHours = $task->logs->sum('hours');
-
-        return view('employee.tasks.show', compact('task', 'totalHours'));
+        return view('employee.tasks.show', [
+            'task'           => $task,
+            'totalHours'     => $task->logs->sum('hours'),
+            'approvedHours'  => $task->approvedHours(),
+            'remainingHours' => $task->remainingHours(),
+        ]);
     }
 
-    /**
-     * Employee moves the task between pending, in progress and in review.
-     */
     public function updateStatus(Request $request, Task $task): RedirectResponse
     {
         Gate::authorize('work', $task);
 
-        if ($task->status === 'done') {
-            return back()->with('error', 'This task is already done and cannot be changed.');
+        if (in_array($task->status, ['done', 'in_review'], true)) {
+            return back()->with('error', 'This task is under review or done, so its status cannot be changed.');
         }
 
         $data = $request->validate([
-            'status' => ['required', 'in:todo,in_progress,in_review'],
+            'status' => ['required', 'in:todo,in_progress'],
         ]);
 
         $task->update(['status' => $data['status']]);
@@ -92,15 +90,12 @@ class TaskController extends Controller
         return back()->with('success', 'Status updated.');
     }
 
-    /**
-     * Add a progress update with the hours spent.
-     */
     public function storeLog(Request $request, Task $task): RedirectResponse
     {
         Gate::authorize('work', $task);
 
-        if ($task->status === 'done') {
-            return back()->with('error', 'This task is already done. You cannot add updates.');
+        if (in_array($task->status, ['done', 'in_review'], true)) {
+            return back()->with('error', 'This task is under review or done. You cannot add updates.');
         }
 
         $data = $request->validate([
@@ -109,8 +104,71 @@ class TaskController extends Controller
             'note'     => ['required', 'string', 'max:2000'],
         ]);
 
+        // Hours cannot go beyond what the admin approved
+        $remaining = $task->remainingHours();
+        if ((float) $data['hours'] > $remaining) {
+            return back()->withInput()->withErrors([
+                'hours' => $remaining > 0
+                    ? "Only {$remaining} approved hours are left on this task."
+                : 'No approved hours are left. Your project manager needs to request more hours.',
+            ]);
+        }
+
         $task->logs()->create($data + ['user_id' => Auth::id()]);
 
         return back()->with('success', 'Update added.');
+    }
+
+    /**
+    * Employee sends the task for review with what is left and the next tasks.
+    */
+    public function submitReview(Request $request, Task $task): RedirectResponse
+    {
+        Gate::authorize('work', $task);
+
+        if (in_array($task->status, ['done', 'in_review'], true)) {
+            return back()->with('error', 'This task is already under review or done.');
+        }
+
+        $data = $request->validate([
+            'summary'    => ['required', 'string', 'max:3000'],
+            'next_tasks' => ['required', 'string', 'max:3000'],
+        ], [
+            'summary.required'    => 'Please write what you completed.',
+            'next_tasks.required' => 'Please write what is left or your next tasks.',
+        ]);
+
+        $task->update(['status' => 'in_review', 'review_stage' => 'tl']);
+
+        $task->reviewEvents()->create([
+            'user_id' => Auth::id(),
+            'type'    => 'submitted',
+            'body'    => "Completed:\n{$data['summary']}\n\nNext tasks:\n{$data['next_tasks']}",
+        ]);
+
+        return back()->with('success', 'Submitted for review. Your team leader will check it first.');
+    }
+    /**
+    * Employee gives the reason when the PM asks why the task is not complete.
+    */
+    public function replyReason(Request $request, Task $task): RedirectResponse
+    {
+        Gate::authorize('replyReason', $task);
+
+        $data = $request->validate([
+            'body' => ['required', 'string', 'max:3000'],
+        ], [
+            'body.required' => 'Please write the reason.',
+        ]);
+
+        $task->update(['review_stage' => 'pm']);
+
+        $task->reviewEvents()->create([
+            'user_id' => Auth::id(),
+            'type'    => 'employee_reason',
+            'body'    => $data['body'],
+        ]);
+
+        return back()->with('success', 'Reason sent to the project manager.');
     }
 }

@@ -90,6 +90,20 @@
                 </div>
                 <span class="sidebar-badge">{{ \App\Models\Project::count() }}</span>
             </a>
+            <a href="{{ route('admin.hours.index') }}" class="sidebar-link {{ request()->routeIs('admin.hours.*') ? 'active' : '' }}">
+                <div class="link-left">
+                    <i class="bi bi-hourglass-split"></i>
+                    <span>Hour Requests</span>
+                </div>
+                <span class="sidebar-badge" style="background:#D97706;">{{ \App\Models\TaskHourAllotment::where('status', 'pending')->count() }}</span>
+            </a>
+            <a href="{{ route('admin.confirmations.index') }}" class="sidebar-link {{ request()->routeIs('admin.confirmations.*') ? 'active' : '' }}">
+                <div class="link-left">
+                    <i class="bi bi-patch-check"></i>
+                    <span>Completed Tasks</span>
+                </div>
+                <span class="sidebar-badge" style="background:#059669;">{{ \App\Models\Task::awaitingAdmin()->count() }}</span>
+            </a>
 
             <a href="javascript:void(0)" class="sidebar-link">
                 <div class="link-left">
@@ -133,19 +147,19 @@
                 <span class="sidebar-badge">{{ $user->projects()->where('status', 'active')->count() }} Active</span>
             </a>
 
-            <a href="{{ route('pm.tasks.overview') }}" class="sidebar-link {{ request()->routeIs('pm.tasks.overview') ? 'active' : '' }}">
+            <a href="{{ route('pm.tasks.overview') }}" class="sidebar-link {{ request()->routeIs('pm.tasks.overview') && ! request()->query('review') ? 'active' : '' }}">
                 <div class="link-left">
                     <i class="bi bi-kanban"></i>
                     <span>Task Management</span>
                 </div>
             </a>
 
-            <a href="javascript:void(0)" class="sidebar-link">
+            <a href="{{ route('pm.tasks.overview', ['review' => 'pm']) }}" class="sidebar-link {{ request()->query('review') === 'pm' ? 'active' : '' }}">
                 <div class="link-left">
                     <i class="bi bi-hourglass-split"></i>
                     <span>Pending Reviews</span>
                 </div>
-                <span class="sidebar-badge" style="background:#D97706;">5</span>
+                <span class="sidebar-badge" style="background:#D97706;">{{ \App\Models\Task::whereHas('project', fn ($q) => $q->where('project_manager_id', $user->id))->where('status', 'in_review')->where('review_stage', 'pm')->count() }}</span>
             </a>
 
             <a href="{{ route('pm.team-leaders.index') }}" class="sidebar-link {{ request()->routeIs('pm.team-leaders.*') ? 'active' : '' }}">

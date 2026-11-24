@@ -50,7 +50,37 @@ class TaskPolicy
     // PM sees tasks of own projects, TL sees tasks given to them
     public function view(User $user, Task $task): bool
     {
-        return $this->ownsProject($user, $task->project)
+        return $user->isAdmin()
+            || $this->ownsProject($user, $task->project)
             || ($user->isTeamLeader() && $task->assigned_to === $user->id);
+    }
+    // PM asks the admin for hours on a task of an own project
+    public function requestHours(User $user, Task $task): bool
+    {
+        return $this->ownsProject($user, $task->project);
+    }
+    // Team leader checks a task the employee sent for review
+    public function reviewAsLeader(User $user, Task $task): bool
+    {
+        return $user->isTeamLeader()
+            && $task->assigned_to === $user->id
+            && $task->status === 'in_review'
+            && $task->review_stage === 'tl';
+    }
+    // PM verifies a task the team leader approved
+    public function reviewAsManager(User $user, Task $task): bool
+    {
+        return $this->ownsProject($user, $task->project)
+            && $task->status === 'in_review'
+            && $task->review_stage === 'pm';
+    }
+
+    // Employee answers the PM's question
+    public function replyReason(User $user, Task $task): bool
+    {
+        return $user->isEmployee()
+            && $task->employee_id === $user->id
+            && $task->status === 'in_review'
+            && $task->review_stage === 'employee';
     }
 }

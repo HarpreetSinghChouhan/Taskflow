@@ -29,8 +29,10 @@ class TaskController extends Controller
         // Only tasks that belong to this PM's projects
         $base = fn () => Task::whereHas('project', fn ($q) => $q->where('project_manager_id', $pmId));
 
-        $query = $base()->with(['project', 'assignee','employee']);
-
+        $query = $base()->with(['project', 'assignee', 'employee'])->withSum('logs as logged_hours', 'hours');
+        if ($request->query('review') === 'pm') {
+            $query->where('status', 'in_review')->where('review_stage', 'pm');
+        }   
         if ($search) {
             $query->where('title', 'like', "%{$search}%");
         }
@@ -80,6 +82,7 @@ class TaskController extends Controller
             'assignee',
             'employee',
             'logs' => fn ($q) => $q->with('user')->latest('log_date')->latest('id'),
+            'reviewEvents' => fn ($q) => $q->with('user')->oldest('id'),
         ]);
 
         return view('tasks.show', [
@@ -89,6 +92,45 @@ class TaskController extends Controller
             'backLabel'  => 'Back to Project Tasks',
             ]);
         }
+        /**
+    * PM completes the task, asks why it is not complete, or returns it.
+    */
+    public function review(Request $request, Task $task): RedirectResponse
+    {
+        Gate::authorize('reviewAsManager', $task);
+
+        $data = $request->validate([
+            'decision' => ['required', 'in:complete,question,return'],
+            'body'     => ['required_if:decision,return', 'nullable', 'string', 'max:2000'],
+        ], [
+        'body.required_if' => 'Please write a comment when returning the task.',
+        ]);
+
+        $body = $data['body'] ?? null;
+
+        if ($data['decision'] === 'complete') {
+            $task->update(['status' => 'done', 'review_stage' => null]);
+            $type = 'pm_completed';
+            $message = 'Task marked complete. The admin can see your confirmation.';
+        } elseif ($data['decision'] === 'question') {
+            $task->update(['review_stage' => 'employee']);
+            $type = 'pm_question';
+            $body = $body ?: 'Why is this task not complete?';
+            $message = 'Question sent. The employee will give a reason.';
+        } else {
+            $task->update(['status' => 'in_progress', 'review_stage' => null]);
+            $type = 'pm_returned';
+            $message = 'Task returned to the employee.';
+        }
+
+        $task->reviewEvents()->create([
+            'user_id' => Auth::id(),
+            'type'    => $type,
+            'body'    => $body,
+        ]);
+
+        return back()->with('success', $message);
+    }
         /**
         * Kanban board of one project (columns are statuses).
         */
@@ -128,7 +170,10 @@ class TaskController extends Controller
                 'status' => ['required', 'in:todo,in_progress,in_review,done'],
             ]);
 
-            $task->update(['status' => $data['status']]);
+            $task->update([
+                'status'       => $data['status'],
+                'review_stage' => $data['status'] === 'in_review' ? ($task->review_stage ?? 'pm') : null,
+            ]);
             return response()->json(['ok' => true, 'status' => $task->status]);
         }
         /**
@@ -213,6 +258,7 @@ class TaskController extends Controller
         Gate::authorize('update', $task);
 
         $data = $this->validated($request);
+        $data['review_stage'] = $data['status'] === 'in_review' ? ($task->review_stage ?? 'pm') : null;
 
         // A new team leader has a different team, so clear the old employee
         if ((int) $data['assigned_to'] !== (int) $task->assigned_to) {
